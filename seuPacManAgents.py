@@ -1,4 +1,4 @@
-# multiAgents.py
+# multiAgents.py ou seuPacManAgents.py
 # --------------
 # Licensing Information:  You are free to use or extend these projects for
 # educational purposes provided that (1) you do not distribute or publish
@@ -23,40 +23,40 @@ from multiAgents import MultiAgentSearchAgent
 class MinimaxAgent(MultiAgentSearchAgent):
     def getAction(self, gameState: GameState):
         """
-        Algoritmo Minimax para controle do Pac-Man.
+        Algoritmo Minimax para controle do agente Pac-Man.
         """
         def minimax(agentIndex=0, depth=0, state=gameState):
-            # Caso base: vitória, derrota ou profundidade máxima atingida
+            # 5.2. Condição de Parada (Base Case)
             if state.isWin() or state.isLose() or depth == self.depth:
-                return betterEvaluationFunction(state)
+                return self.evaluationFunction(state)
 
             actions = state.getLegalActions(agentIndex)
 
-            # Remove a ação de ficar parado no turno do Pac-Man (evita hesitação)
+            # Opcional: Evita hesitação removendo 'Stop' se houver outras escolhas
             if agentIndex == 0 and 'Stop' in actions and len(actions) > 1:
                 actions.remove('Stop')
 
-            # Se não houver ações disponíveis para o agente
+            # Caso não existam ações legais disponíveis
             if not actions:
                 if depth == 0:
                     return Directions.STOP
-                return betterEvaluationFunction(state)
+                return self.evaluationFunction(state)
 
-            # Calcula o próximo agente
-            nextAgent = agentIndex + 1
-            if nextAgent == state.getNumAgents():
+            # 5.3. Gerenciamento de Agentes e Profundidade
+            numAgents = state.getNumAgents()
+            isLastGhost = (agentIndex == numAgents - 1)
+
+            if isLastGhost:
                 nextAgent = 0
+                nextDepth = depth + 1
+            else:
+                nextAgent = agentIndex + 1
+                nextDepth = depth
 
-            # Incrementa a profundidade apenas quando o turno volta ao Pac-Man (agente 0)
-            nextDepth = depth
-            if nextAgent == 0:
-                nextDepth += 1
-
+            # 5.4. Lógica de Maximização (Turno do Pac-Man)
             if agentIndex == 0:
-                # Maximização (Turno do Pac-Man)
                 max_score = -float('inf')
-                # Define a primeira ação como padrão para evitar que best_action fique como None
-                best_action = actions[0]
+                best_action = actions[0]  # Garante uma ação padrão caso todas levem a -inf
 
                 for action in actions:
                     next_state = state.generateSuccessor(agentIndex, action)
@@ -70,8 +70,8 @@ class MinimaxAgent(MultiAgentSearchAgent):
                     return best_action
                 return max_score
 
+            # 5.5. Lógica de Minimização (Turno dos Fantasmas)
             else:
-                # Minimização (Turno dos Fantasmas)
                 min_score = float('inf')
 
                 for action in actions:
@@ -87,17 +87,12 @@ class MinimaxAgent(MultiAgentSearchAgent):
 
 
 def avaliarSegurancaEComida(pos, foodList, ghostStates):
-    """
-    1. Se a comida estiver mais próxima que os fantasmas (de forma segura), atrai o Pac-Man.
-    2. Se a comida estiver longe, gera atração progressiva para ele se aproximar.
-    """
     if not foodList:
         return 0
 
     foodDistances = [manhattanDistance(pos, f) for f in foodList]
     minFoodDist = min(foodDistances)
 
-    # Considera apenas fantasmas ativos (não assustados)
     activeGhosts = [g for g in ghostStates if g.scaredTimer == 0]
 
     if activeGhosts:
@@ -106,19 +101,13 @@ def avaliarSegurancaEComida(pos, foodList, ghostStates):
     else:
         minGhostDist = float('inf')
 
-    # Regra 1: Comida mais próxima que o fantasma com margem de segurança
     if minFoodDist < minGhostDist - 1 or minGhostDist > 3:
         return 30.0 / (minFoodDist + 1)
 
-    # Regra 2: Comida distante / aproximação contínua
     return 10.0 / (minFoodDist + 1)
 
 
 def avaliarFantasmas(pos, ghostStates):
-    """
-    Penaliza fortemente aproximações a fantasmas perigosos.
-    Incentiva a caça caso o fantasma esteja assustado.
-    """
     score = 0
     for ghost in ghostStates:
         dist = manhattanDistance(pos, ghost.getPosition())
@@ -146,14 +135,10 @@ def betterEvaluationFunction(currentGameState: GameState):
 
     score = currentGameState.getScore()
 
-    # Penaliza a quantidade de comida restante no mapa
     score -= 20.0 * len(foodList)
-
-    # Soma os cálculos de segurança/comida e fantasmas
     score += avaliarSegurancaEComida(pos, foodList, ghostStates)
     score += avaliarFantasmas(pos, ghostStates)
 
     return score
 
-# Abreviação
 better = betterEvaluationFunction
